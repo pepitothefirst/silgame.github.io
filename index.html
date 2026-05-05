@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sil in Paris</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Sil in Paris"> 
+    
+    <meta name="theme-color" content="#000000"> 
+    <link rel="apple-touch-icon" href="icon.png"> 
+
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+        * { box-sizing: border-box; }
+        
+        body, html {
+            margin: 0; padding: 0; 
+            width: 100vw; height: 100vh;
+            background-color: #000; color: #000;
+            font-family: 'Press Start 2P', cursive; 
+            overflow: hidden; touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        #game-container, #fade-overlay, .full-screen-bg {
+            position: absolute; top: 0; left: 0; 
+            width: 100vw; height: 100vh; 
+        }
+
+        .full-screen-bg {
+            background-size: cover; background-position: center;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100; color: white; text-align: center; cursor: pointer;
+            transform: scale(1.02); 
+        }
+        
+        #loading-screen { background-color: #ffebd2; z-index: 300; cursor: default; }
+        .loading-container { width: 80%; max-width: 300px; text-align: center; transform: scale(0.98); }
+        .loading-text { color: #d32f2f; font-size: 12px; margin-bottom: 15px; animation: blink 1.5s infinite; }
+        .loading-bar-border { width: 100%; height: 20px; border: 4px solid #000; background-color: #fff; padding: 2px; }
+        .loading-bar-fill { height: 100%; width: 0%; background-color: #d32f2f; transition: width 0.2s ease; }
+
+        #splash-screen { background-image: url('bg-start.png'); display: none; }
+        
+        .tap-text { 
+            font-size: 14px; background: #000; color: #fff; padding: 15px 20px; 
+            border: 4px solid #fff; box-shadow: 4px 4px 0 #ff6b6b;
+            animation: blink 1.5s infinite; transform: scale(0.98);
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        #fade-overlay { background-color: black; opacity: 0; z-index: 999; pointer-events: none; transition: opacity 0.8s ease; }
+
+        #game-container { display: none; }
+
+        .scene-layer { 
+            display: none; position: absolute; top: 0; left: 0; 
+            width: 100vw; height: 100vh; 
+            background-size: cover; background-position: center bottom; background-repeat: no-repeat;
+            transform: scale(1.02); transform-origin: center bottom; 
+        }
+        
+        body.scene-street #layer-street { background-image: url('bg-street.png'); display: block; } 
+        body.scene-cafe #layer-cafe { background-image: url('bg-cafe.png'); display: block; } 
+        body.scene-flowers #layer-flowers { background-image: url('bg-flowers.png'); display: block; } 
+        body.scene-eiffel #layer-eiffel { background-image: url('bg-eiffel.png'); display: block; }
+        body.scene-credits #layer-credits { background-image: url('bg-credits.png'); display: block; }
+
+        #credits-darken {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #000; opacity: 0; transition: opacity 12s linear;
+            z-index: 60; pointer-events: none; display: none;
+        }
+        body.scene-credits #credits-darken { display: block; }
+
+        #credits-text {
+            position: absolute; bottom: -100%; width: 100vw;
+            text-align: center; color: #fff; z-index: 80; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-shadow: 2px 2px 0px #000;
+        }
+        .scrolling-credits { animation: scrollUp 28s linear forwards; }
+        @keyframes scrollUp { 0% { bottom: -110%; } 100% { bottom: 130%; } }
+
+        .credit-love { color: #ffebd2; font-size: 16px; margin-bottom: 50px; line-height: 1.5; }
+        .credit-title { color: #ff6b6b; font-size: 10px; margin-top: 30px; margin-bottom: 8px; }
+        .credit-name { color: #fff; font-size: 14px; }
+
+        #player-sprite {
+            position: absolute; bottom: 14%; left: -10%; transform: translateX(-50%); 
+            height: 14vh; width: auto; z-index: 50; will-change: left, transform, bottom; 
+        }
+
+        #jim-sprite {
+            position: absolute; bottom: 10%; left: 75%; transform: translateX(-50%);
+            height: 16.5vh; width: auto; z-index: 45; display: none; cursor: pointer;
+            will-change: left, transform; 
+        }
+
+        /* Εφέ Αιώρησης Παπουτσιών - Τροποποιημένο μέγεθος & ύψος */
+        #floating-shoes {
+            position: absolute;
+            bottom: 25%; /* Πιο ψηλά! Ήταν 20% */
+            left: 75%;
+            transform: translateX(-50%);
+            z-index: 48;
+            display: none;
+            animation: floatShoes 2s ease-in-out infinite;
+        }
+        @keyframes floatShoes {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-10px); }
+        }
+        .shoe-back {
+            position: absolute;
+            left: -1vh; 
+            top: -0.5vh; 
+            height: 3vh; /* Μικρότερο! Ήταν 4.5vh */
+            width: auto;
+            z-index: 1;
+            filter: brightness(0.6); 
+        }
+        .shoe-front {
+            position: relative;
+            height: 3.5vh; /* Μικρότερο! Ήταν 5vh */
+            width: auto;
+            z-index: 2;
+        }
+
+        .window-box { background: white; padding: 12px; border: 4px solid #000; box-shadow: 4px 4px 0 #000; z-index: 60; line-height: 1.8; }
+        #objective-box { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 15px); left: calc(env(safe-area-inset-left, 0px) + 15px); font-size: 11px; }
+        .obj-title { color: #d32f2f; margin-bottom: 5px; }
+        #inventory-box { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 110px); left: calc(env(safe-area-inset-left, 0px) + 15px); font-size: 28px; display: none; }
+        
+        .pop-animation { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+        #dialogue-container {
+            position: absolute; bottom: 30px; left: calc(env(safe-area-inset-left, 0px) + 5%); 
+            width: calc(90% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); 
+            z-index: 70; display: none; flex-direction: column; gap: 15px;
+            transform-origin: bottom center; transition: left 0.3s ease, width 0.3s ease;
+        }
+        #dialogue-box { background: white; padding: 18px; border: 4px solid #000; box-shadow: 4px 4px 0 #000; font-size: 13px; cursor: pointer; }
+        #choices { display: none; justify-content: center; gap: 15px; margin-top: 10px; }
+        .choice-btn { padding: 12px 15px; font-size: 11px; background: white; border: 4px solid #000; font-family: 'Press Start 2P'; cursor: pointer; }
+
+        .hit-zone { position: absolute; height: 100%; top: 0; z-index: 40; }
+        #zone-eiffel { left: 40%; width: 20%; top: 10%; height: 40%; z-index: 41; }
+    </style>
+</head>
+<body class="scene-street">
+
+    <audio id="bg-music" loop><source src="paris-lofi.mp3" type="audio/mpeg"></audio>
+
+    <div id="loading-screen" class="full-screen-bg">
+        <div class="loading-container">
+            <div class="loading-text">LOADING ASSETS...</div>
+            <div class="loading-bar-border"><div id="loading-fill" class="loading-bar-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="splash-screen" class="full-screen-bg" onclick="startGame()">
+        <div class="tap-text">TAP TO START</div>
+    </div>
+    
+    <div id="fade-overlay"></div>
+
+    <div id="game-container">
+        <div id="credits-darken"></div>
+        <div id="credits-text">
+            <div class="credit-love">With love ❤️</div>
+            <div class="credit-title">GAME DIRECTOR</div><div class="credit-name">Dimitris Pournaras</div>
+            <div class="credit-title">LEAD DEVELOPER</div><div class="credit-name">Dimitris Pournaras</div>
+            <div class="credit-title">PIXEL ART DESIGNER</div><div class="credit-name">Dimitris Pournaras</div>
+            <div class="credit-title">BEST BOYFRIEND AWARD</div><div class="credit-name">Dimitris Pournaras</div>
+            <div class="credit-title">BIRTHDAY AWARD</div><div class="credit-name">Silia Zerva</div>
+        </div>
+
+        <img id="player-sprite" src="sil-side-1.png" class="pixel-art" alt="Sil">
+        <img id="jim-sprite" src="jim-idle.png" class="pixel-art" alt="Jim">
+
+        <!-- Τα αιωρούμενα παπούτσια! -->
+        <div id="floating-shoes">
+            <img src="shoes-icon.png" class="shoe-back">
+            <img src="shoes-icon.png" class="shoe-front">
+        </div>
+
+        <div id="objective-box" class="window-box">
+            <div class="obj-title">OBJECTIVE:</div><div id="current-objective"></div>
+        </div>
+        
+        <div id="inventory-box" class="window-box">
+            <span id="item-coffee"></span>
+            <span id="item-flowers"></span>
+        </div>
+
+        <div id="layer-street" class="scene-layer" onclick="handleStreetClick(event)"><div id="zone-eiffel" class="hit-zone" onclick="goEiffel(event)"></div></div>
+        <div id="layer-cafe" class="scene-layer"></div>
+        <div id="layer-flowers" class="scene-layer"></div>
+        <div id="layer-eiffel" class="scene-layer"></div>
+        <div id="layer-credits" class="scene-layer"></div>
+
+        <div id="dialogue-container">
+            <div id="dialogue-box"></div>
+            <div id="choices">
+                <button class="choice-btn" id="btn-buy"></button>
+                <button class="choice-btn" id="btn-cancel"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const assetsToLoad = [
+            'sil-side-1.png', 'sil-side-2.png', 'sil-front-1.png', 'sil-front-2.png', 'sil-back-1.png', 'sil-back-2.png',
+            'jim-idle.png', 'jim-side-1.png', 'jim-box.png', 'jim-box-open.png', 'shoes-icon.png', 
+            'bg-street.png', 'bg-cafe.png', 'bg-flowers.png', 'bg-eiffel.png', 'bg-credits.png', 'bg-start.png'
+        ];
+
+        let loadedAssets = 0; const totalAssets = assetsToLoad.length; let hasFinishedLoading = false; 
+
+        function preloadImages() {
+            if (totalAssets === 0) { finishLoading(); return; }
+            setTimeout(() => { if (!hasFinishedLoading) finishLoading(); }, 5000);
+            assetsToLoad.forEach(src => {
+                const img = new Image();
+                img.onload = () => assetLoaded();
+                img.onerror = () => assetLoaded(); 
+                img.src = src;
+            });
+        }
+
+        function assetLoaded() {
+            if (hasFinishedLoading) return; loadedAssets++;
+            document.getElementById('loading-fill').style.width = ((loadedAssets / totalAssets) * 100) + '%';
+            if (loadedAssets === totalAssets) setTimeout(finishLoading, 400);
+        }
+
+        function finishLoading() {
+            if (hasFinishedLoading) return; hasFinishedLoading = true;
+            document.getElementById('loading-fill').style.width = '100%';
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+                document.getElementById('splash-screen').style.display = 'flex';
+            }, 100);
+        }
+
+        window.onload = preloadImages;
+
+        const UI = {
+            objectiveBox: document.getElementById('objective-box'),
+            objectiveText: document.getElementById('current-objective'),
+            dialogueBox: document.getElementById('dialogue-box'),
+            dialogueContainer: document.getElementById('dialogue-container'),
+            choices: document.getElementById('choices'),
+            btnBuy: document.getElementById('btn-buy'),
+            btnCancel: document.getElementById('btn-cancel'),
+            inventoryBox: document.getElementById('inventory-box'),
+            itemCoffee: document.getElementById('item-coffee'),
+            itemFlowers: document.getElementById('item-flowers'),
+            floatingShoes: document.getElementById('floating-shoes'),
+            fade: document.getElementById('fade-overlay'),
+            sil: document.getElementById('player-sprite'),
+            jim: document.getElementById('jim-sprite')
+        };
+
+        const state = {
+            isWalking: false, inDialogue: false, currentObjectiveIndex: 0,
+            hasCoffee: false, hasFlowers: false, currentScene: 'street',
+            isInitialWalk: false, activeShop: null, lastVisitedShop: null, 
+            jimStage: 0, walkTarget: null, pendingInventoryPop: false,
+            isFading: false
+        };
+
+        const objectivesList = ["BUY COFFEE AND CROISSANTS", "BUY FLOWERS", "FIND JIM!"];
+        const DOORS = { cafe: 20, flowers: 82 };
+
+        let walkTimer; let proximityTimer; let dialogueQueue = []; let typingInterval; let isTyping = false; let currentDialogueNode = null; let creditsWalkTimer;
+
+        function startGame() {
+            document.getElementById('bg-music').volume = 0.4;
+            document.getElementById('bg-music').play().catch(() => {});
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            
+            UI.sil.style.transition = 'none';
+            UI.sil.style.height = '14vh';
+            UI.sil.style.bottom = '14%';
+            UI.sil.style.left = '-10%';
+            UI.sil.style.display = 'block';
+            UI.sil.style.transform = 'translateX(-50%) scaleX(1)';
+            UI.sil.src = 'sil-side-1.png';
+
+            UI.jim.style.transition = 'none';
+            UI.jim.style.display = 'none';
+            UI.jim.style.left = '75%';
+            UI.jim.style.bottom = '10%';
+            UI.jim.style.height = '16.5vh';
+            UI.jim.style.transform = 'translateX(-50%) scaleX(-1)';
+            UI.jim.src = 'jim-idle.png';
+            
+            void UI.sil.offsetWidth; 
+
+            state.currentScene = 'street';
+            state.isInitialWalk = true;
+            popAndTypeObjective();
+            walkTo(50, 'side', () => { state.isInitialWalk = false; }); 
+        }
+
+        function updateObjective() {
+            state.currentObjectiveIndex++;
+        }
+
+        function popAndTypeObjective() {
+            UI.objectiveBox.classList.remove('pop-animation');
+            void UI.objectiveBox.offsetWidth; 
+            UI.objectiveBox.classList.add('pop-animation');
+            
+            let text = objectivesList[state.currentObjectiveIndex];
+            if (!text) return; 
+            
+            UI.objectiveText.innerHTML = "";
+            let i = 0;
+            let interval = setInterval(() => {
+                if (i >= text.length) { clearInterval(interval); return; }
+                UI.objectiveText.innerHTML += text.charAt(i); i++;
+            }, 50);
+        }
+
+        function stopWalking() {
+            clearInterval(walkTimer); clearInterval(proximityTimer); 
+            let pxLeft = window.getComputedStyle(UI.sil).left;
+            let percentLeft = (parseFloat(pxLeft) / window.innerWidth) * 100;
+            UI.sil.style.transition = 'none'; 
+            UI.sil.style.left = percentLeft + '%'; 
+            UI.sil.src = 'sil-front-1.png';
+            state.isWalking = false; state.walkTarget = null;
+        }
+
+        function walkTo(targetPercent, direction, onComplete) {
+            if (state.inDialogue) return;
+            if (state.isWalking) { stopWalking(); }
+            state.isWalking = true; state.walkTarget = targetPercent;
+            let pxLeft = window.getComputedStyle(UI.sil).left;
+            let currentLeft = (parseFloat(pxLeft) / window.innerWidth) * 100;
+            let duration = Math.max(Math.abs(targetPercent - currentLeft) * 40, 500);
+            
+            if (direction === 'side') {
+                UI.sil.style.transform = targetPercent > currentLeft ? `translateX(-50%) scaleX(1)` : `translateX(-50%) scaleX(-1)`;
+                setTimeout(() => { UI.sil.style.transition = `left ${duration}ms linear`; UI.sil.style.left = targetPercent + '%'; }, 50);
+            }
+            
+            let frame = 1;
+            walkTimer = setInterval(() => {
+                frame = frame === 1 ? 2 : 1;
+                UI.sil.src = `sil-${direction}-${frame}.png`;
+            }, 200);
+
+            proximityTimer = setInterval(() => { checkShopProximity(); }, 30);
+            setTimeout(() => {
+                if(state.isWalking && state.walkTarget === targetPercent) { stopWalking(); if (onComplete) onComplete(); }
+            }, duration);
+        }
+
+        function checkShopProximity() {
+            if (state.isInitialWalk || state.currentScene !== 'street') return;
+            let pxLeft = window.getComputedStyle(UI.sil).left;
+            let currentLeft = (parseFloat(pxLeft) / window.innerWidth) * 100;
+            if (!state.hasCoffee && state.lastVisitedShop !== 'cafe' && Math.abs(currentLeft - DOORS.cafe) < 1.5 && Math.abs(state.walkTarget - DOORS.cafe) > 2) {
+                stopWalking(); UI.sil.style.left = DOORS.cafe + '%'; state.activeShop = 'cafe'; state.lastVisitedShop = 'cafe'; showEntryMenu();
+            } else if (!state.hasFlowers && state.lastVisitedShop !== 'flowers' && Math.abs(currentLeft - DOORS.flowers) < 1.5 && Math.abs(state.walkTarget - DOORS.flowers) > 2) {
+                stopWalking(); UI.sil.style.left = DOORS.flowers + '%'; state.activeShop = 'flowers'; state.lastVisitedShop = 'flowers'; showEntryMenu();
+            }
+        }
+
+        function handleStreetClick(e) {
+            if (state.inDialogue || state.isInitialWalk || state.currentScene !== 'street') return;
+            let clickX = (e.clientX / window.innerWidth) * 100;
+            if (!state.hasCoffee && clickX >= 5 && clickX <= 35) {
+                walkTo(DOORS.cafe, 'side', () => { state.activeShop = 'cafe'; state.lastVisitedShop = 'cafe'; showEntryMenu(); }); return;
+            }
+            if (!state.hasFlowers && clickX >= 70 && clickX <= 95) {
+                walkTo(DOORS.flowers, 'side', () => { state.activeShop = 'flowers'; state.lastVisitedShop = 'flowers'; showEntryMenu(); }); return;
+            }
+            walkTo(clickX, 'side');
+        }
+
+        function showEntryMenu() {
+            let text = state.activeShop === 'cafe' ? "Go inside Cafe de Flore?" : "Go inside the Flower Shop?";
+            queueDialogue(text, () => {
+                UI.btnBuy.innerText = "Yes"; UI.btnBuy.onclick = () => { processEntry(true); };
+                UI.btnCancel.innerText = "No"; UI.btnCancel.onclick = () => { processEntry(false); };
+                UI.choices.style.display = 'flex';
+            }, "System");
+        }
+
+        function processEntry(enter) {
+            UI.choices.style.display = 'none'; UI.dialogueContainer.style.display = 'none'; state.inDialogue = false;
+            if (enter) { walkIntoShopAnimation(); } 
+            else {
+                let currLeft = parseFloat(window.getComputedStyle(UI.sil).left);
+                walkTo((currLeft / window.innerWidth) * 100 + 8, 'side');
+            }
+        }
+
+        function walkIntoShopAnimation() {
+            state.isWalking = true; UI.sil.style.transition = 'bottom 0.8s linear'; UI.sil.style.bottom = '16%'; 
+            let frame = 1; let walkInTimer = setInterval(() => { frame = frame === 1 ? 2 : 1; UI.sil.src = `sil-back-${frame}.png`; }, 200);
+            setTimeout(() => {
+                doFade(() => {
+                    clearInterval(walkInTimer); 
+                    state.currentScene = state.activeShop;
+                    document.body.className = `scene-${state.activeShop}`;
+                    UI.sil.style.display = 'none'; UI.sil.style.transition = 'none'; UI.sil.style.bottom = '14%'; 
+                    setTimeout(() => { state.isWalking = false; showInteriorDialogue(); }, 800); 
+                });
+            }, 400); 
+        }
+
+        function showInteriorDialogue() {
+            if (state.activeShop === 'cafe') {
+                queueDialogue("Mmmm... I'm so hungry.", () => {
+                    UI.btnBuy.innerText = "Buy coffee and croissants"; UI.btnBuy.onclick = () => { processBuy(true); };
+                    UI.btnCancel.innerText = "Cancel"; UI.btnCancel.onclick = () => { processBuy(false); };
+                    UI.choices.style.display = 'flex';
+                }, "Sil");
+            } else if (state.activeShop === 'flowers') {
+                if (!state.hasCoffee) { queueDialogue("It smells amazing, but I want some coffee first.", () => { UI.dialogueBox.onclick = () => { UI.dialogueBox.onclick = null; exitShop(); }; }, "Sil");
+                } else { queueDialogue("These flowers smell lovely!", () => {
+                        UI.btnBuy.innerText = "Buy Flowers"; UI.btnBuy.onclick = () => { processBuy(true); };
+                        UI.btnCancel.innerText = "Cancel"; UI.btnCancel.onclick = () => { processBuy(false); };
+                        UI.choices.style.display = 'flex';
+                    }, "Sil");
+                }
+            }
+        }
+
+        function processBuy(buy) {
+            UI.choices.style.display = 'none';
+            UI.dialogueContainer.style.display = 'none';
+            state.inDialogue = false;
+
+            if (buy) {
+                if (state.activeShop === 'cafe') { state.hasCoffee = true; UI.itemCoffee.innerText = "☕ 🥐 "; }
+                if (state.activeShop === 'flowers') { state.hasFlowers = true; UI.itemFlowers.innerText = "💐 "; }
+                updateObjective(); 
+                state.pendingInventoryPop = true;
+            }
+            walkOutOfShopAnimation();
+        }
+
+        function exitShop() {
+            walkOutOfShopAnimation();
+        }
+
+        function walkOutOfShopAnimation() {
+            UI.dialogueContainer.style.display = 'none';
+            state.inDialogue = false;
+
+            doFade(() => {
+                state.currentScene = 'street'; 
+                document.body.className = 'scene-street';
+
+                let doorX = state.activeShop === 'cafe' ? DOORS.cafe : DOORS.flowers;
+
+                UI.sil.style.transition = 'none';
+                UI.sil.style.left = doorX + '%';
+                UI.sil.style.bottom = '16%';
+                UI.sil.style.transform = 'translateX(-50%) scaleX(1)';
+                UI.sil.src = 'sil-front-1.png';
+                UI.sil.style.display = 'block';
+
+                void UI.sil.offsetWidth;
+
+                popAndTypeObjective();
+
+                setTimeout(() => {
+                    state.isWalking = true;
+                    UI.sil.style.transition = 'bottom 0.8s linear';
+                    UI.sil.style.bottom = '14%';
+
+                    let frame = 1;
+                    let walkOutTimer = setInterval(() => {
+                        frame = frame === 1 ? 2 : 1;
+                        UI.sil.src = `sil-front-${frame}.png`;
+                    }, 200);
+
+                    setTimeout(() => {
+                        clearInterval(walkOutTimer);
+                        UI.sil.src = 'sil-front-1.png';
+                        UI.sil.style.transition = 'none';
+
+                        UI.sil.style.left = (doorX + 6) + '%';
+                        state.isWalking = false;
+
+                        if (state.pendingInventoryPop) {
+                            UI.inventoryBox.style.display = 'block';
+                            UI.inventoryBox.classList.remove('pop-animation');
+                            void UI.inventoryBox.offsetWidth;
+                            UI.inventoryBox.classList.add('pop-animation');
+                            state.pendingInventoryPop = false;
+                        }
+                    }, 800);
+                }, 50);
+            });
+        }
+
+        function goEiffel(e) {
+            if (e) e.stopPropagation(); if (state.currentScene === 'eiffel') return; 
+            if (state.hasCoffee && state.hasFlowers) {
+                walkTo(120, 'side', () => {
+                    doFade(() => {
+                        state.currentScene = 'eiffel'; document.body.className = 'scene-eiffel';
+                        UI.sil.style.height = '17vh'; UI.jim.style.height = '20.4vh'; 
+                        UI.sil.style.bottom = '10%'; UI.sil.style.left = '-15%'; UI.jim.style.display = 'block'; 
+                        UI.jim.style.left = '75%'; 
+                        
+                        UI.jim.style.transform = 'translateX(-50%) scaleX(-1)';
+                        UI.jim.src = 'jim-idle.png';
+                        
+                        setTimeout(() => {
+                            state.inDialogue = false; 
+                            walkTo(55, 'side', () => { 
+                                state.isWalking = false; state.jimStage = 1;
+                                
+                                UI.jim.style.transform = 'translateX(-50%) scaleX(1)';
+                                
+                                queueDialogue("Jim! I got us coffee and croissants!", null, "Sil");
+                                queueDialogue("Baby! Happy Birthday!", null, "Jim");
+                            });
+                        }, 100);
+                    });
+                });
+            } else { queueDialogue("I can't go to the Eiffel Tower yet. I need to finish my objectives!", null, "Sil"); }
+        }
+
+        function walkOffScreenBoth() {
+            state.isWalking = true;
+            UI.sil.style.transform = `translateX(-50%) scaleX(1)`;
+            UI.sil.style.transition = `left 3s linear`; UI.sil.style.left = '120%';
+            UI.jim.style.transition = `left 3s linear`; UI.jim.style.left = '130%'; 
+            
+            let frame = 1;
+            let walkTimerLocal = setInterval(() => {
+                frame = frame === 1 ? 2 : 1;
+                UI.sil.src = `sil-side-${frame}.png`;
+                if (frame === 1) {
+                    UI.jim.src = 'jim-side-1.png';
+                    UI.jim.style.transform = 'translateX(-50%) scaleX(1)';
+                } else {
+                    UI.jim.src = 'jim-idle.png';
+                    UI.jim.style.transform = 'translateX(-50%) scaleX(-1)';
+                }
+            }, 250);
+            
+            setTimeout(() => {
+                doFade(() => { clearInterval(walkTimerLocal); startCreditsScene(); });
+            }, 2500);
+        }
+
+        function startCreditsScene() {
+            UI.objectiveBox.style.display = 'none'; UI.inventoryBox.style.display = 'none';
+            state.currentScene = 'credits'; document.body.className = 'scene-credits';
+            
+            UI.sil.style.transition = 'none'; UI.jim.style.transition = 'none';
+            UI.sil.style.height = '14vh'; UI.jim.style.height = '16.5vh';
+            UI.sil.style.left = '-10%'; UI.jim.style.left = '-20%';
+            
+            UI.sil.style.bottom = '15%'; UI.jim.style.bottom = '15%';
+            UI.sil.src = 'sil-side-1.png'; UI.jim.src = 'jim-idle.png';
+            
+            void UI.sil.offsetWidth;
+            let walkDuration = 14000;
+            UI.sil.style.transition = `left ${walkDuration}ms linear`;
+            UI.jim.style.transition = `left ${walkDuration}ms linear`;
+            UI.sil.style.left = '120%'; UI.jim.style.left = '110%';
+
+            document.getElementById('credits-darken').style.opacity = '0.75';
+
+            let cFrame = 1;
+            creditsWalkTimer = setInterval(() => {
+                cFrame = cFrame === 1 ? 2 : 1;
+                UI.sil.src = `sil-side-${cFrame}.png`;
+                if (cFrame === 1) {
+                    UI.jim.src = 'jim-side-1.png';
+                    UI.jim.style.transform = 'translateX(-50%) scaleX(1)';
+                } else {
+                    UI.jim.src = 'jim-idle.png';
+                    UI.jim.style.transform = 'translateX(-50%) scaleX(-1)';
+                }
+            }, 250);
+
+            setTimeout(() => {
+                document.getElementById('credits-text').classList.add('scrolling-credits');
+            }, 2000);
+
+            setTimeout(() => {
+                clearInterval(creditsWalkTimer);
+                doFade(() => { resetGame(); });
+            }, 29000); 
+        }
+
+        function resetGame() {
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('credits-darken').style.opacity = '0';
+            document.getElementById('credits-text').classList.remove('scrolling-credits');
+            UI.objectiveBox.style.display = 'block'; UI.inventoryBox.style.display = 'none';
+            UI.floatingShoes.style.display = 'none';
+            
+            UI.itemCoffee.innerText = ""; 
+            UI.itemFlowers.innerText = "";
+            
+            UI.jim.style.transition = 'none';
+            UI.jim.style.display = 'none';
+            UI.jim.style.left = '75%';
+            UI.jim.style.bottom = '10%';
+            UI.jim.style.transform = 'translateX(-50%) scaleX(-1)';
+            UI.jim.src = 'jim-idle.png';
+
+            document.body.className = 'scene-street';
+            state.hasCoffee = false; state.hasFlowers = false; state.currentObjectiveIndex = 0;
+            state.jimStage = 0; state.activeShop = null; state.lastVisitedShop = null;
+            state.isWalking = false; state.inDialogue = false;
+            
+            let splash = document.getElementById('splash-screen');
+            splash.style.display = 'flex';
+            splash.querySelector('.tap-text').innerText = "TAP TO PLAY AGAIN";
+        }
+
+        function queueDialogue(text, callback = null, speaker = "Sil") {
+            dialogueQueue.push({ text, callback, speaker });
+            if (!state.inDialogue) advanceDialogue();
+        }
+
+        function advanceDialogue() {
+            if (isTyping) return; 
+            if (dialogueQueue.length > 0) {
+                state.inDialogue = true; currentDialogueNode = dialogueQueue.shift();
+                if (state.currentScene === 'eiffel') {
+                    if (currentDialogueNode.speaker === "Sil") { UI.dialogueContainer.style.left = "5%"; UI.dialogueContainer.style.width = "66%"; }
+                    else { UI.dialogueContainer.style.left = "29%"; UI.dialogueContainer.style.width = "66%"; }
+                } else {
+                    UI.dialogueContainer.style.left = "calc(env(safe-area-inset-left, 0px) + 5%)";
+                    UI.dialogueContainer.style.width = "calc(90% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))";
+                }
+                UI.choices.style.display = 'none'; UI.dialogueBox.innerHTML = ""; UI.dialogueContainer.style.display = 'flex';
+                UI.dialogueContainer.classList.remove('pop-animation'); void UI.dialogueContainer.offsetWidth; UI.dialogueContainer.classList.add('pop-animation');
+                isTyping = true; let charIndex = 0;
+                let prefix = (currentDialogueNode.speaker === "Sil") ? "Sil: " : (currentDialogueNode.speaker === "Jim") ? "Jim: " : "";
+                let textToType = prefix + currentDialogueNode.text;
+                let timePerChar = 1500 / textToType.length; 
+                UI.dialogueBox.onclick = (e) => { if (e) e.stopPropagation(); if (isTyping) { clearInterval(typingInterval); isTyping = false; UI.dialogueBox.innerHTML = textToType; finishDialogueNode(); } };
+                typingInterval = setInterval(() => { UI.dialogueBox.innerHTML += textToType.charAt(charIndex); charIndex++; if (charIndex >= textToType.length) { clearInterval(typingInterval); isTyping = false; finishDialogueNode(); } }, timePerChar);
+            } else {
+                UI.dialogueContainer.style.display = 'none'; state.inDialogue = false; UI.dialogueBox.onclick = null; 
+                
+                if (state.currentScene === 'eiffel') {
+                    if (state.jimStage === 1) {
+                        state.jimStage = 2; 
+                        UI.jim.style.transform = 'translateX(-50%) scaleX(1)';
+                        UI.jim.src = 'jim-box.png'; 
+                        queueDialogue("Here is your gift! I love you ❤️", null, "Jim");
+                    } 
+                    else if (state.jimStage === 2) {
+                        state.jimStage = 3; 
+                        
+                        // Ο Jim ανοίγει το κουτί
+                        UI.jim.src = 'jim-box-open.png';
+                        
+                        // Εμφανίζονται τα αιωρούμενα παπούτσια!
+                        UI.floatingShoes.style.display = 'block';
+                        
+                        // Περιμένουμε λίγο για να μην γίνει διπλό κλικ αμέσως
+                        setTimeout(() => {
+                            document.getElementById('game-container').onclick = function(e) {
+                                document.getElementById('game-container').onclick = null;
+                                
+                                // Κρύβουμε τα παπούτσια
+                                UI.floatingShoes.style.display = 'none';
+                                
+                                state.jimStage = 4;
+                                walkOffScreenBoth();
+                            };
+                        }, 200);
+                    } 
+                }
+            }
+        }
+
+        function finishDialogueNode() {
+            if (currentDialogueNode.callback) { UI.dialogueBox.onclick = null; currentDialogueNode.callback(); } 
+            else { UI.dialogueBox.onclick = (e) => { if (e) e.stopPropagation(); UI.dialogueBox.onclick = null; advanceDialogue(); }; }
+        }
+
+        function doFade(midPointCallback) {
+            state.isFading = true; 
+            UI.fade.style.pointerEvents = 'all'; 
+            UI.fade.style.opacity = '1'; 
+            
+            setTimeout(() => {
+                if (midPointCallback) midPointCallback(); 
+                UI.fade.style.opacity = '0'; 
+                
+                setTimeout(() => { 
+                    UI.fade.style.pointerEvents = 'none'; 
+                    state.isFading = false; 
+                }, 800); 
+            }, 800);
+        }
+    </script>
+</body>
+</html>
